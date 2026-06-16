@@ -17,12 +17,13 @@ import {
 import IssueNote from './IssueNote';
 
 export default function Expenses() {
-  const { expenses, setExpenses, suppliers, API_URL } = useGlobalContext();
+  const { expenses, setExpenses, suppliers, API_URL, settings, updateSettings } = useGlobalContext();
   
+  const categories = settings?.expenseCategories || [];
+  const months = settings?.availableMonths || [];
+
   // State
-  const [categories, setCategories] = useState(['Electricity', 'Water', 'Chemicals', 'Transport', 'Meals']);
   const [selectedMonth, setSelectedMonth] = useState('2026-06');
-  const [months, setMonths] = useState(['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06']);
   
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
   const [isIssueNoteOpen, setIsIssueNoteOpen] = useState(false);
@@ -37,7 +38,7 @@ export default function Expenses() {
   const [expDate, setExpDate] = useState(new Date().toISOString().split('T')[0]);
   const [expReason, setExpReason] = useState('');
   const [expAmount, setExpAmount] = useState('');
-  const [expCategory, setExpCategory] = useState(categories[0]);
+  const [expCategory, setExpCategory] = useState(categories[0] || '');
   const [expSupplierId, setExpSupplierId] = useState('');
 
   const [editingExpenseId, setEditingExpenseId] = useState(null);
@@ -49,7 +50,7 @@ export default function Expenses() {
   // Month Handlers
   const handleAddMonth = () => {
     if (newMonth.trim() && !months.includes(newMonth.trim())) {
-      setMonths([...months, newMonth.trim()]);
+      updateSettings({ ...settings, availableMonths: [...months, newMonth.trim()] });
       setNewMonth('');
     }
   };
@@ -57,18 +58,21 @@ export default function Expenses() {
   // Category Handlers
   const handleAddCategory = () => {
     if (newCategory.trim() && !categories.includes(newCategory.trim())) {
-      setCategories([...categories, newCategory.trim()]);
+      updateSettings({ ...settings, expenseCategories: [...categories, newCategory.trim()] });
       setNewCategory('');
     }
   };
 
   const handleDeleteCategory = (cat) => {
-    setCategories(categories.filter(c => c !== cat));
+    updateSettings({ ...settings, expenseCategories: categories.filter(c => c !== cat) });
   };
 
   const handleEditCategorySave = (oldCat) => {
     if (editCategoryName.trim() && !categories.includes(editCategoryName.trim())) {
-      setCategories(categories.map(c => c === oldCat ? editCategoryName.trim() : c));
+      updateSettings({ 
+        ...settings, 
+        expenseCategories: categories.map(c => c === oldCat ? editCategoryName.trim() : c) 
+      });
     }
     setEditingCategory(null);
   };

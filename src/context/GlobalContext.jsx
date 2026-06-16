@@ -13,11 +13,28 @@ export const GlobalProvider = ({ children }) => {
   const [invoices, setInvoices] = useState([]);
   const [gatePasses, setGatePasses] = useState([]);
   const [staff, setStaff] = useState([]);
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('currentUser');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  // Sync currentUser to localStorage
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('currentUser');
+    }
+  }, [currentUser]);
   const [savedSalaries, setSavedSalaries] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [productionLogs, setProductionLogs] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [settings, setSettings] = useState({ expenseCategories: [], availableMonths: [] });
 
   // Fetch all initial data
   const fetchAllData = async () => {
@@ -26,7 +43,7 @@ export const GlobalProvider = ({ children }) => {
     try {
       const [
         custRes, suppRes, invRes, passRes, staffRes,
-        salRes, expRes, prodRes, payRes
+        salRes, expRes, prodRes, payRes, settingsRes
       ] = await Promise.all([
         axios.get(`${API_URL}/customers`),
         axios.get(`${API_URL}/suppliers`),
@@ -36,7 +53,8 @@ export const GlobalProvider = ({ children }) => {
         axios.get(`${API_URL}/salary`),
         axios.get(`${API_URL}/expenses`),
         axios.get(`${API_URL}/production`),
-        axios.get(`${API_URL}/payments`)
+        axios.get(`${API_URL}/payments`),
+        axios.get(`${API_URL}/settings`)
       ]);
 
       setCustomers(custRes.data);
@@ -48,8 +66,18 @@ export const GlobalProvider = ({ children }) => {
       setExpenses(expRes.data);
       setProductionLogs(prodRes.data);
       setPayments(payRes.data);
+      setSettings(settingsRes.data);
     } catch (err) {
       console.error("Error fetching data from backend", err);
+    }
+  };
+
+  const updateSettings = async (newSettings) => {
+    try {
+      const res = await axios.put(`${API_URL}/settings`, newSettings);
+      setSettings(res.data);
+    } catch (err) {
+      console.error("Error updating settings", err);
     }
   };
 
@@ -69,6 +97,7 @@ export const GlobalProvider = ({ children }) => {
       savedSalaries, setSavedSalaries,
       productionLogs, setProductionLogs,
       payments, setPayments,
+      settings, updateSettings,
       fetchAllData,
       API_URL
     }}>

@@ -40,6 +40,7 @@ const productionRoutes = require('../backend/routes/productionRoutes');
 const paymentRoutes = require('../backend/routes/paymentRoutes');
 const salaryRoutes = require('../backend/routes/salaryRoutes');
 const gatePassRoutes = require('../backend/routes/gatePassRoutes');
+const settingsRoutes = require('../backend/routes/settingsRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/customers', customerRoutes);
@@ -50,6 +51,7 @@ app.use('/api/production', productionRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/salary', salaryRoutes);
 app.use('/api/gatepasses', gatePassRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Basic Route
 app.get('/api', (req, res) => {
