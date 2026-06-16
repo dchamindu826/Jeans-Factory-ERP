@@ -10,16 +10,25 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// Database Connection
-const MONGO_URI = process.env.MONGO_URI;
-
-if (!MONGO_URI) {
-  console.log("⚠️  MONGO_URI is missing in .env file. Waiting for database connection string...");
-} else {
-  mongoose.connect(MONGO_URI)
-  .then(() => console.log('✅ MongoDB Connected successfully!'))
-  .catch(err => console.error('❌ MongoDB Connection Error:', err));
-}
+// Database Connection Middleware for Serverless
+app.use(async (req, res, next) => {
+  const MONGO_URI = process.env.MONGO_URI;
+  if (!MONGO_URI) {
+    console.error("⚠️ MONGO_URI is missing!");
+    return res.status(500).json({ message: "Server misconfiguration" });
+  }
+  
+  if (mongoose.connection.readyState !== 1) { // 1 = connected
+    try {
+      await mongoose.connect(MONGO_URI);
+      console.log('✅ MongoDB Connected inside middleware!');
+    } catch (err) {
+      console.error('❌ MongoDB Connection Error:', err);
+      return res.status(500).json({ message: "Database connection failed" });
+    }
+  }
+  next();
+});
 
 // Routes
 const authRoutes = require('../backend/routes/authRoutes');
