@@ -22,15 +22,15 @@ if (!MONGO_URI) {
 }
 
 // Routes
-const authRoutes = require('./routes/authRoutes');
-const customerRoutes = require('./routes/customerRoutes');
-const supplierRoutes = require('./routes/supplierRoutes');
-const invoiceRoutes = require('./routes/invoiceRoutes');
-const expenseRoutes = require('./routes/expenseRoutes');
-const productionRoutes = require('./routes/productionRoutes');
-const paymentRoutes = require('./routes/paymentRoutes');
-const salaryRoutes = require('./routes/salaryRoutes');
-const gatePassRoutes = require('./routes/gatePassRoutes');
+const authRoutes = require('../backend/routes/authRoutes');
+const customerRoutes = require('../backend/routes/customerRoutes');
+const supplierRoutes = require('../backend/routes/supplierRoutes');
+const invoiceRoutes = require('../backend/routes/invoiceRoutes');
+const expenseRoutes = require('../backend/routes/expenseRoutes');
+const productionRoutes = require('../backend/routes/productionRoutes');
+const paymentRoutes = require('../backend/routes/paymentRoutes');
+const salaryRoutes = require('../backend/routes/salaryRoutes');
+const gatePassRoutes = require('../backend/routes/gatePassRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/customers', customerRoutes);
