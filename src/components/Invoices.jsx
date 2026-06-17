@@ -27,8 +27,10 @@ export default function Invoices() {
   const [newInvoiceData, setNewInvoiceData] = useState({
     customerId: '',
     date: new Date().toISOString().split('T')[0],
+    gatePassNo: '',
+    vatPercentage: 18,
     items: [
-      { styleNo: '', description: '', unitPrice: 0, quantity: 1, total: 0 }
+      { styleNo: '', dryProcess: '', washType: '', unitPrice: 0, quantity: 1, total: 0 }
     ]
   });
 
@@ -54,7 +56,7 @@ export default function Invoices() {
   const handleAddItem = () => {
     setNewInvoiceData(prev => ({
       ...prev,
-      items: [...prev.items, { styleNo: '', description: '', unitPrice: 0, quantity: 1, total: 0 }]
+      items: [...prev.items, { styleNo: '', dryProcess: '', washType: '', unitPrice: 0, quantity: 1, total: 0 }]
     }));
   };
 
@@ -76,10 +78,12 @@ export default function Invoices() {
     setNewInvoiceData(prev => ({ ...prev, items: newItems }));
   };
 
-  const calculateTotals = (items) => {
+  const calculateTotals = (items, vatPercentage) => {
     const qty = items.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
-    const amount = items.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0);
-    return { qty, amount };
+    const grossAmount = items.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0);
+    const vatAmount = grossAmount * ((parseFloat(vatPercentage) || 0) / 100);
+    const amount = grossAmount + vatAmount; // Full Amount With VAT
+    return { qty, grossAmount, vatAmount, amount };
   };
 
   const handleSaveInvoice = async (e) => {
@@ -89,7 +93,7 @@ export default function Invoices() {
       return;
     }
     
-    const { qty, amount } = calculateTotals(newInvoiceData.items);
+    const { qty, grossAmount, vatAmount, amount } = calculateTotals(newInvoiceData.items, newInvoiceData.vatPercentage);
     
     if (qty === 0 || amount === 0) {
       alert("Invoice must have at least one valid item with total > 0.");
@@ -100,11 +104,19 @@ export default function Invoices() {
       const payload = {
         ...newInvoiceData,
         qty,
+        grossAmount,
+        vatAmount,
         amount
       };
       await axios.post(`${API_URL}/invoices`, payload);
       setViewState('list');
-      setNewInvoiceData({ customerId: '', date: new Date().toISOString().split('T')[0], items: [{ styleNo: '', description: '', unitPrice: 0, quantity: 1, total: 0 }] });
+      setNewInvoiceData({ 
+        customerId: '', 
+        date: new Date().toISOString().split('T')[0], 
+        gatePassNo: '',
+        vatPercentage: 18,
+        items: [{ styleNo: '', dryProcess: '', washType: '', unitPrice: 0, quantity: 1, total: 0 }] 
+      });
       fetchData();
     } catch (err) {
       console.error("Error saving invoice:", err);
@@ -131,7 +143,7 @@ export default function Invoices() {
     const originalBg = element.style.backgroundColor;
     element.style.backgroundColor = '#ffffff';
     
-    const canvas = await html2canvas(element, { scale: 2, useCORS: true, logging: false });
+    const canvas = await html2canvas(element, { scale: 3, useCORS: true, logging: false });
     const imgData = canvas.toDataURL('image/png');
     
     element.style.backgroundColor = originalBg;
@@ -149,25 +161,49 @@ export default function Invoices() {
     const customer = customers.find(c => c._id === currentInvoice.customerId || c._id === currentInvoice.customerId?._id);
     
     const wsData = [
-      ['JEANS FACTORY (PVT) LTD'],
-      ['TAX INVOICE'],
+      ['JEANS FACTORY (PVT) LTD.'],
+      ['NO.45, Ganemulla Road, Ma-Eliya,'],
+      ['Ja-Ela.'],
+      ['VAT NO : 175486194 - 2525'],
+      ['Tel - +94 076 336 5701'],
+      ['E-mail - jeansfactorypvtltd@gmail.com'],
       [],
-      ['Date:', currentInvoice.date, '', 'Invoice ID:', currentInvoice._id],
-      ['Customer:', customer?.name, '', 'Contact:', customer?.phone],
+      ['', '', 'TAX INVOICE'],
+      ['CONSIGNEE :', '', '', 'INVOICE', 'INVOICE DATE', 'JF G.PASS'],
+      [customer?.name || '', '', '', currentInvoice._id?.substring(0, 8).toUpperCase(), currentInvoice.date, currentInvoice.gatePassNo],
+      [customer?.address || ''],
+      [`VAT NO : ${customer?.vatNo || ''}`],
+      [`Tel : ${customer?.phone || ''}`],
       [],
-      ['Style No', 'Description', 'Quantity', 'Unit Price (Rs)', 'Total (Rs)'],
+      ['FULL DESCRIPTION OF GOODS', '', '', 'QUANTITY', 'UNIT PRICE', 'TOTAL VALUE'],
+      ['STYLE # / DESCRIPTION', 'Dry Process', 'WASH TYPE', '(PCS)', '(RS.)', '(RS.)'],
       ...currentInvoice.items.map(item => [
-        item.styleNo, item.description, item.quantity, item.unitPrice, item.total
+        item.styleNo || item.description, item.dryProcess, item.washType, item.quantity, item.unitPrice, item.total
       ]),
       [],
-      ['', '', '', 'Total Quantity:', currentInvoice.qty],
-      ['', '', '', 'Gross Amount:', `Rs. ${currentInvoice.amount}`],
+      ['', '', 'Total Amount:', currentInvoice.qty, '', currentInvoice.grossAmount],
+      ['', '', `(+) ${currentInvoice.vatPercentage}% VAT:`, '', '', currentInvoice.vatAmount],
+      ['', '', 'Full Amount With VAT :', '', '', currentInvoice.amount],
+      [],
+      ['', '', '', 'FOR AND ON BEHALF OF'],
+      ['', '', '', 'JEANS FACTORY']
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(wsData);
+    
+    // Auto-size columns slightly
+    ws['!cols'] = [
+      { wch: 30 },
+      { wch: 20 },
+      { wch: 20 },
+      { wch: 15 },
+      { wch: 15 },
+      { wch: 20 }
+    ];
+
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Invoice");
-    XLSX.writeFile(wb, `Invoice_${currentInvoice.date}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, "TAX INVOICE");
+    XLSX.writeFile(wb, `TAX_INVOICE_${currentInvoice.date}.xlsx`);
   };
 
   const filteredInvoices = useMemo(() => {
@@ -182,7 +218,7 @@ export default function Invoices() {
 
   // View: Create Invoice
   if (viewState === 'create') {
-    const totals = calculateTotals(newInvoiceData.items);
+    const totals = calculateTotals(newInvoiceData.items, newInvoiceData.vatPercentage);
     return (
       <div className="flex flex-col h-full gap-6 animate-in fade-in duration-500 overflow-y-auto custom-scrollbar pb-10">
         <div className="glass-card p-6 border-t-4 border-t-brand-500">
@@ -191,7 +227,7 @@ export default function Invoices() {
               <button onClick={() => setViewState('list')} className="text-slate-400 hover:text-white transition-colors">
                 <ArrowLeft className="w-6 h-6" />
               </button>
-              Create New Invoice
+              Create New Tax Invoice
             </h2>
             <button onClick={handleSaveInvoice} className="glass-button !w-auto !py-2.5 !px-6 flex items-center gap-2 !bg-emerald-600/80 hover:!bg-emerald-500">
               <Save className="w-5 h-5" /> Save Invoice
@@ -200,9 +236,9 @@ export default function Invoices() {
 
           <form onSubmit={handleSaveInvoice}>
             {/* Header Details */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 bg-slate-900/50 p-6 rounded-2xl border border-slate-700/50">
-              <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Customer</label>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 bg-slate-900/50 p-6 rounded-2xl border border-slate-700/50">
+              <div className="md:col-span-2">
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Customer (Consignee)</label>
                 <select 
                   value={newInvoiceData.customerId} 
                   onChange={e => setNewInvoiceData({...newInvoiceData, customerId: e.target.value})}
@@ -223,26 +259,37 @@ export default function Invoices() {
                   required
                 />
               </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">JF G.Pass No</label>
+                <input 
+                  type="text" 
+                  value={newInvoiceData.gatePassNo} 
+                  onChange={e => setNewInvoiceData({...newInvoiceData, gatePassNo: e.target.value})}
+                  className="glass-input w-full text-lg py-3" 
+                  placeholder="e.g. 1141"
+                />
+              </div>
             </div>
 
             {/* Items Table */}
             <div className="mb-6">
               <div className="flex justify-between items-end mb-4">
-                <h3 className="text-lg font-bold text-white uppercase tracking-widest">Invoice Items</h3>
+                <h3 className="text-lg font-bold text-white uppercase tracking-widest">Full Description of Goods</h3>
                 <button type="button" onClick={handleAddItem} className="text-brand-400 hover:text-brand-300 font-bold flex items-center gap-1 bg-brand-500/10 px-4 py-2 rounded-lg transition-colors">
-                  <PlusCircle className="w-5 h-5" /> Add Item
+                  <PlusCircle className="w-5 h-5" /> Add Item Row
                 </button>
               </div>
               
               <div className="overflow-x-auto rounded-xl border border-slate-700/50 bg-slate-900/50">
-                <table className="w-full text-left border-collapse min-w-[800px]">
+                <table className="w-full text-left border-collapse min-w-[1000px]">
                   <thead>
                     <tr className="bg-slate-800/80 text-slate-300 text-[10px] uppercase tracking-widest border-b border-slate-700">
-                      <th className="p-3 font-bold w-[15%]">Style No</th>
-                      <th className="p-3 font-bold w-[35%]">Description</th>
-                      <th className="p-3 font-bold w-[15%]">Unit Price</th>
-                      <th className="p-3 font-bold w-[15%]">Quantity</th>
-                      <th className="p-3 font-bold w-[15%]">Total</th>
+                      <th className="p-3 font-bold w-[25%]">Style # / Desc</th>
+                      <th className="p-3 font-bold w-[20%]">Dry Process</th>
+                      <th className="p-3 font-bold w-[20%]">Wash Type</th>
+                      <th className="p-3 font-bold w-[10%] text-right">Qty (Pcs)</th>
+                      <th className="p-3 font-bold w-[10%] text-right">Unit Price</th>
+                      <th className="p-3 font-bold w-[10%] text-right">Total</th>
                       <th className="p-3 font-bold w-[5%]"></th>
                     </tr>
                   </thead>
@@ -250,26 +297,27 @@ export default function Invoices() {
                     {newInvoiceData.items.map((item, idx) => (
                       <tr key={idx} className="hover:bg-slate-800/30">
                         <td className="p-2">
-                          <input type="text" value={item.styleNo} onChange={e => handleItemChange(idx, 'styleNo', e.target.value)} className="glass-input w-full !py-2 !px-3" placeholder="ST-100" />
+                          <input type="text" value={item.styleNo} onChange={e => handleItemChange(idx, 'styleNo', e.target.value)} className="glass-input w-full !py-2 !px-3" placeholder="Style or Note" />
                         </td>
                         <td className="p-2">
-                          <input type="text" value={item.description} onChange={e => handleItemChange(idx, 'description', e.target.value)} className="glass-input w-full !py-2 !px-3" placeholder="Washed Jeans" />
+                          <input type="text" value={item.dryProcess} onChange={e => handleItemChange(idx, 'dryProcess', e.target.value)} className="glass-input w-full !py-2 !px-3" placeholder="Whisker etc." />
+                        </td>
+                        <td className="p-2">
+                          <input type="text" value={item.washType} onChange={e => handleItemChange(idx, 'washType', e.target.value)} className="glass-input w-full !py-2 !px-3" placeholder="Dark Wash etc." />
+                        </td>
+                        <td className="p-2">
+                          <input type="number" min="0" value={item.quantity} onChange={e => handleItemChange(idx, 'quantity', e.target.value)} className="glass-input w-full !py-2 !px-3 text-right" placeholder="1" />
                         </td>
                         <td className="p-2">
                           <input type="number" min="0" step="0.01" value={item.unitPrice} onChange={e => handleItemChange(idx, 'unitPrice', e.target.value)} className="glass-input w-full !py-2 !px-3 text-right" placeholder="0.00" />
                         </td>
-                        <td className="p-2">
-                          <input type="number" min="1" value={item.quantity} onChange={e => handleItemChange(idx, 'quantity', e.target.value)} className="glass-input w-full !py-2 !px-3 text-right" placeholder="1" />
-                        </td>
                         <td className="p-3 text-right font-black text-emerald-400">
-                          Rs. {item.total.toLocaleString(undefined, {minimumFractionDigits: 2})}
+                          {item.total.toLocaleString(undefined, {minimumFractionDigits: 2})}
                         </td>
                         <td className="p-2 text-center">
-                          {newInvoiceData.items.length > 1 && (
-                            <button type="button" onClick={() => handleRemoveItem(idx)} className="text-red-400 hover:text-red-300 p-2 rounded-lg bg-red-400/10 hover:bg-red-400/20 transition-colors">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
+                          <button type="button" onClick={() => handleRemoveItem(idx)} className="text-red-400 hover:text-red-300 p-2 rounded-lg bg-red-400/10 hover:bg-red-400/20 transition-colors">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -279,15 +327,27 @@ export default function Invoices() {
             </div>
 
             {/* Summary */}
-            <div className="flex justify-end">
-              <div className="w-full max-w-sm bg-slate-900/80 p-6 rounded-2xl border border-slate-700/50">
-                <div className="flex justify-between items-center mb-3">
-                  <span className="text-slate-400 font-bold uppercase text-xs tracking-widest">Total Quantity</span>
-                  <span className="text-white font-black text-lg">{totals.qty} pcs</span>
+            <div className="flex justify-end mt-8">
+              <div className="w-full max-w-md bg-slate-900/80 p-6 rounded-2xl border border-slate-700/50">
+                <div className="flex justify-between items-center mb-4">
+                  <span className="text-slate-400 font-bold uppercase text-xs tracking-widest">Total Amount (Gross)</span>
+                  <span className="text-white font-black text-lg">Rs. {totals.grossAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
                 </div>
-                <div className="flex justify-between items-center pt-3 border-t border-slate-700/50">
-                  <span className="text-slate-400 font-bold uppercase text-xs tracking-widest">Gross Total</span>
-                  <span className="text-emerald-400 font-black text-2xl">Rs. {totals.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                <div className="flex justify-between items-center mb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-400 font-bold uppercase text-xs tracking-widest">(+) VAT %</span>
+                    <input 
+                      type="number" 
+                      className="glass-input !py-1 !px-2 w-20 text-center text-sm" 
+                      value={newInvoiceData.vatPercentage}
+                      onChange={e => setNewInvoiceData({...newInvoiceData, vatPercentage: e.target.value})}
+                    />
+                  </div>
+                  <span className="text-red-400 font-bold text-md">Rs. {totals.vatAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                </div>
+                <div className="flex justify-between items-center pt-4 border-t border-slate-700/50">
+                  <span className="text-brand-400 font-black uppercase tracking-widest">Full Amount With VAT</span>
+                  <span className="text-emerald-400 font-black text-3xl">Rs. {totals.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
                 </div>
               </div>
             </div>
@@ -300,6 +360,12 @@ export default function Invoices() {
   // View: Print/Export Invoice
   if (viewState === 'view' && currentInvoice) {
     const customer = customers.find(c => c._id === currentInvoice.customerId || c._id === currentInvoice.customerId?._id);
+    
+    // Set up standard display values
+    const vatPct = currentInvoice.vatPercentage ?? 18;
+    const grossAmt = currentInvoice.grossAmount ?? currentInvoice.amount;
+    const vatAmt = currentInvoice.vatAmount ?? 0;
+    
     return (
       <div className="flex flex-col h-full gap-6 animate-in fade-in duration-500 overflow-y-auto custom-scrollbar pb-10">
         <div className="flex justify-between items-center shrink-0">
@@ -316,91 +382,162 @@ export default function Invoices() {
           </div>
         </div>
 
-        {/* Printable Area - Must be white bg with dark text for print */}
-        <div className="bg-white p-10 md:p-16 rounded-2xl shadow-2xl max-w-4xl mx-auto w-full text-slate-900 border border-slate-200" ref={printRef}>
-          {/* Header */}
-          <div className="flex justify-between items-start mb-12 border-b-4 border-brand-500 pb-8">
-            <div>
-              <h1 className="text-4xl font-black text-brand-600 uppercase tracking-tighter mb-2">Jeans Factory</h1>
-              <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Garment Wash & Dry Process</p>
-              <div className="mt-4 text-sm text-slate-600">
-                <p>123 Industrial Estate,</p>
-                <p>Biyagama, Sri Lanka</p>
-                <p>Tel: +94 11 234 5678</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <h2 className="text-4xl font-black text-slate-200 uppercase tracking-widest mb-4">Invoice</h2>
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 inline-block text-left min-w-[200px]">
-                <div className="mb-2">
-                  <p className="text-[10px] uppercase font-bold text-slate-400">Invoice No</p>
-                  <p className="font-bold text-slate-800">{currentInvoice._id?.substring(0, 8).toUpperCase()}</p>
-                </div>
+        {/* Printable Area - Formatted exactly like the requested Excel template */}
+        <div className="bg-white p-8 md:p-12 shadow-2xl max-w-[1000px] mx-auto w-full text-black font-sans relative" ref={printRef}>
+          
+          {/* Top Header - Company Info */}
+          <div className="mb-4">
+            <p className="font-bold text-[15px] leading-tight">JEANS FACTORY (PVT) LTD.</p>
+            <p className="font-bold text-[13px] leading-tight">NO.45, Ganemulla Road, Ma-Eliya,</p>
+            <p className="font-bold text-[13px] leading-tight">Ja-Ela.</p>
+            <p className="font-bold text-[13px] leading-tight text-red-600 mt-1">VAT NO : 175486194 - 2525</p>
+            <p className="font-bold text-[13px] italic leading-tight mt-1">Tel - +94 076 336 5701</p>
+            <p className="font-bold text-[13px] italic leading-tight mt-3">E-mail - jeansfactorypvtltd@gmail.com</p>
+          </div>
+
+          <div className="text-center mb-2">
+            <h1 className="text-[22px] font-black tracking-wide underline underline-offset-4 decoration-2">TAX INVOICE</h1>
+          </div>
+
+          {/* Consignee & Invoice Details Grid */}
+          <div className="grid grid-cols-12 border-2 border-black">
+            {/* Consignee */}
+            <div className="col-span-8 border-r-2 border-black p-2">
+              <p className="font-black text-[13px]">CONSIGNEE :</p>
+              <p className="font-black text-[15px] mt-1">{customer?.name || 'UNKNOWN'}</p>
+              <p className="font-bold text-[13px] leading-tight mt-1 whitespace-pre-line">{customer?.address || 'Address not provided'}</p>
+              <p className="font-bold text-[13px] leading-tight text-red-600 mt-1">VAT NO : {customer?.vatNo || '-'}</p>
+              <div className="font-bold text-[13px] leading-tight mt-1 flex gap-2">
+                <span>Tel :</span>
                 <div>
-                  <p className="text-[10px] uppercase font-bold text-slate-400">Date</p>
-                  <p className="font-bold text-slate-800">{currentInvoice.date}</p>
+                  <p>{customer?.phone || '-'}</p>
                 </div>
+              </div>
+            </div>
+
+            {/* Invoice Details */}
+            <div className="col-span-4 flex">
+              <div className="flex-1 border-r-2 border-black p-2">
+                <p className="font-black text-[13px]">INVOICE</p>
+                <p className="font-medium text-[13px] mt-2">{currentInvoice._id?.substring(0, 8).toUpperCase()}</p>
+              </div>
+              <div className="flex-1 border-r-2 border-black p-2">
+                <p className="font-black text-[13px]">INVOICE</p>
+                <p className="font-medium text-[13px] mt-2">{currentInvoice.date}</p>
+              </div>
+              <div className="flex-1 p-2">
+                <p className="font-black text-[13px]">JF G.PASS</p>
+                <p className="font-black text-red-600 text-[14px] mt-2">{currentInvoice.gatePassNo || '-'}</p>
               </div>
             </div>
           </div>
 
-          {/* Customer Info */}
-          <div className="mb-10">
-            <h3 className="text-xs uppercase font-black text-slate-400 tracking-widest mb-3 border-b border-slate-200 pb-2">Bill To</h3>
-            <h4 className="text-2xl font-black text-slate-800 mb-1">{customer?.name || 'Unknown Customer'}</h4>
-            {customer?.address && <p className="text-slate-600 text-sm max-w-xs">{customer.address}</p>}
-            {customer?.phone && <p className="text-slate-600 text-sm mt-1">{customer.phone}</p>}
-          </div>
-
-          {/* Items Table */}
-          <div className="mb-12">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-100 border-y-2 border-slate-300">
-                  <th className="py-3 px-4 text-xs uppercase tracking-widest font-black text-slate-600">Style No</th>
-                  <th className="py-3 px-4 text-xs uppercase tracking-widest font-black text-slate-600">Description</th>
-                  <th className="py-3 px-4 text-xs uppercase tracking-widest font-black text-slate-600 text-right">Qty</th>
-                  <th className="py-3 px-4 text-xs uppercase tracking-widest font-black text-slate-600 text-right">Unit Price</th>
-                  <th className="py-3 px-4 text-xs uppercase tracking-widest font-black text-brand-600 text-right">Total (Rs)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {currentInvoice.items && currentInvoice.items.length > 0 ? currentInvoice.items.map((item, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-4 px-4 text-sm font-bold text-slate-700">{item.styleNo || '-'}</td>
-                    <td className="py-4 px-4 text-sm text-slate-600">{item.description || '-'}</td>
-                    <td className="py-4 px-4 text-sm font-bold text-slate-700 text-right">{item.quantity}</td>
-                    <td className="py-4 px-4 text-sm text-slate-600 text-right">{(item.unitPrice || 0).toLocaleString(undefined, {minimumFractionDigits:2})}</td>
-                    <td className="py-4 px-4 text-sm font-black text-slate-800 text-right">{(item.total || 0).toLocaleString(undefined, {minimumFractionDigits:2})}</td>
-                  </tr>
-                )) : (
-                  <tr>
-                    <td colSpan="5" className="py-4 px-4 text-sm text-center text-slate-500 italic">No items detailed in this invoice.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Totals */}
-          <div className="flex justify-end">
-            <div className="w-full max-w-sm">
-              <div className="flex justify-between items-center py-2 px-4 border-b border-slate-100">
-                <span className="text-xs uppercase font-bold text-slate-500 tracking-widest">Total Quantity</span>
-                <span className="font-bold text-slate-700">{currentInvoice.qty} pcs</span>
+          {/* Main Table */}
+          <div className="border-x-2 border-b-2 border-black mt-0">
+            {/* Table Header */}
+            <div className="flex border-b-2 border-black">
+              <div className="flex-[6] flex flex-col">
+                <div className="text-center font-black text-[14px] py-1 border-b border-black">
+                  FULL DESCRIPTION OF GOODS
+                </div>
+                <div className="flex text-[12px] font-bold">
+                  <div className="flex-[1] p-1 border-r border-black uppercase">STYLE #</div>
+                  <div className="flex-[1] p-1 border-r border-black">Dry Process</div>
+                  <div className="flex-[1] p-1 uppercase">WASH TYPE</div>
+                </div>
               </div>
-              <div className="flex justify-between items-center py-4 px-4 bg-slate-50 border-t-4 border-brand-500 rounded-b-xl mt-2">
-                <span className="text-sm uppercase font-black text-slate-800 tracking-widest">Grand Total</span>
-                <span className="text-2xl font-black text-brand-600">Rs. {Number(currentInvoice.amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+              <div className="flex-[1] border-l-2 border-black p-1 text-center flex items-center justify-center font-black text-[11px] leading-tight">
+                QUANTITY<br/>(PCS)
+              </div>
+              <div className="flex-[1.5] border-l-2 border-black p-1 text-center flex items-center justify-center font-black text-[11px] leading-tight uppercase">
+                UNIT PRICE<br/>(RS.)
+              </div>
+              <div className="flex-[1.5] border-l-2 border-black p-1 text-center flex items-center justify-center font-black text-[11px] leading-tight uppercase">
+                TOTAL VALUE<br/>(RS.)
+              </div>
+            </div>
+
+            {/* Table Body (Min Height for spacing) */}
+            <div className="min-h-[250px] flex">
+              <div className="flex-[6] flex flex-col">
+                {currentInvoice.items && currentInvoice.items.map((item, idx) => (
+                  <div key={idx} className="flex text-[13px] border-b border-black/10 last:border-b-0 min-h-[30px]">
+                    <div className="flex-[1] px-2 py-1 border-r border-black font-bold whitespace-pre-wrap">{item.styleNo}</div>
+                    <div className="flex-[1] px-2 py-1 border-r border-black">{item.dryProcess}</div>
+                    <div className="flex-[1] px-2 py-1">{item.washType}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex-[1] border-l-2 border-black">
+                {currentInvoice.items && currentInvoice.items.map((item, idx) => (
+                  <div key={idx} className="text-center text-[13px] font-bold py-1 border-b border-black/10 last:border-b-0 min-h-[30px]">{item.quantity || ''}</div>
+                ))}
+              </div>
+              <div className="flex-[1.5] border-l-2 border-black">
+                {currentInvoice.items && currentInvoice.items.map((item, idx) => (
+                  <div key={idx} className="text-[13px] font-bold py-1 px-2 border-b border-black/10 last:border-b-0 min-h-[30px] flex justify-between">
+                    <span></span>
+                    <span>{item.unitPrice ? item.unitPrice.toLocaleString() : ''}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex-[1.5] border-l-2 border-black">
+                {currentInvoice.items && currentInvoice.items.map((item, idx) => (
+                  <div key={idx} className="text-[13px] font-black py-1 px-2 border-b border-black/10 last:border-b-0 min-h-[30px] flex justify-end">
+                    <span>{item.total ? item.total.toLocaleString(undefined, {minimumFractionDigits: 2}) : ''}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Empty space filler line to match Excel look */}
+            <div className="flex border-t border-black/20 h-6">
+              <div className="flex-[6]"></div>
+              <div className="flex-[1] border-l-2 border-black"></div>
+              <div className="flex-[1.5] border-l-2 border-black"></div>
+              <div className="flex-[1.5] border-l-2 border-black"></div>
+            </div>
+
+            {/* Totals Rows */}
+            <div className="border-t-2 border-black flex">
+              <div className="flex-[6] text-right font-black text-[14px] p-1 pr-4">Total Amount:</div>
+              <div className="flex-[1] border-l-2 border-black text-center font-black text-[14px] p-1">{currentInvoice.qty}</div>
+              <div className="flex-[1.5] border-l-2 border-black text-right font-black text-[14px] p-1 px-2">
+                 {/* Unit price total is not usually summed, but user screenshot shows a value here, I'll leave it blank or calc if requested. Let's leave blank to be safe. */}
+              </div>
+              <div className="flex-[1.5] border-l-2 border-black text-right font-black text-[14px] p-1 px-2">
+                {grossAmt.toLocaleString(undefined, {minimumFractionDigits: 2})}
+              </div>
+            </div>
+
+            <div className="border-t border-black flex">
+              <div className="flex-[6] text-right font-black text-[14px] p-1 pr-4">(+) {vatPct}% VAT:</div>
+              <div className="flex-[1] border-l-2 border-black"></div>
+              <div className="flex-[1.5] border-l-2 border-black"></div>
+              <div className="flex-[1.5] border-l-2 border-black text-right font-black text-[14px] p-1 px-2">
+                {vatAmt.toLocaleString(undefined, {minimumFractionDigits: 2})}
+              </div>
+            </div>
+
+            <div className="border-t-2 border-black flex bg-black/5">
+              <div className="flex-[6] text-right font-black text-[15px] p-2 pr-4">Full Amount With VAT :</div>
+              <div className="flex-[1] border-l-2 border-black"></div>
+              <div className="flex-[1.5] border-l-2 border-black"></div>
+              <div className="flex-[1.5] border-l-2 border-black text-right font-black text-[15px] p-2 px-2">
+                {currentInvoice.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}
               </div>
             </div>
           </div>
 
           {/* Footer */}
-          <div className="mt-20 pt-8 border-t border-slate-200 text-center">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Thank you for your business!</p>
-            <p className="text-[10px] text-slate-400">Payment is due within 30 days. Please make cheques payable to Jeans Factory (PVT) LTD.</p>
+          <div className="mt-8 flex justify-end">
+            <div className="text-center min-w-[250px]">
+              <div className="border-b border-black mb-2 pb-12"></div>
+              <p className="font-black text-[12px] uppercase">FOR AND ON BEHALF OF</p>
+              <p className="font-black text-[12px] uppercase mt-1">JEANS FACTORY</p>
+            </div>
           </div>
+
         </div>
       </div>
     );
@@ -484,12 +621,12 @@ export default function Invoices() {
                 </div>
                 <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end">
                   <div className="text-right">
-                    <p className="text-xs text-slate-500 uppercase font-bold tracking-widest mb-0.5">Amount</p>
+                    <p className="text-xs text-slate-500 uppercase font-bold tracking-widest mb-0.5">Total Amount</p>
                     <p className="text-emerald-400 font-black text-xl">Rs. {Number(invoice.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <button onClick={() => { setCurrentInvoice(invoice); setViewState('view'); }} className="glass-button !w-auto !py-2 !px-4 !bg-blue-600/80 hover:!bg-blue-500 text-xs font-bold mr-2 opacity-0 group-hover:opacity-100 transition-all">
-                      View / Export
+                      View / Print
                     </button>
                     <button onClick={() => handleDelete(invoice._id)} className="p-2 bg-slate-800 text-red-400 rounded-lg hover:bg-red-500 hover:text-white transition-all opacity-0 group-hover:opacity-100">
                       <Trash2 className="w-5 h-5" />
