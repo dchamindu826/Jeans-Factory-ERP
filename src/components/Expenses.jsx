@@ -99,7 +99,11 @@ export default function Expenses() {
       }
       setIsAddExpenseOpen(false);
       setExpReason(''); setExpAmount(''); setExpSupplierId('');
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+      console.error(err); 
+      const errorMsg = err.response?.data?.error || err.response?.data?.message || err.message;
+      alert(`Failed to save expense. Error: ${errorMsg}`);
+    }
   };
 
   const handleEditExpenseClick = (expense) => {

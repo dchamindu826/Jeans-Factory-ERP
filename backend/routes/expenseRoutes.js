@@ -15,7 +15,14 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { amount, supplierId } = req.body;
-    const newExpense = new Expense(req.body);
+    
+    const expData = { ...req.body };
+    if (!expData.issueNo) {
+      const count = await Expense.countDocuments();
+      expData.issueNo = `ISS-${2000 + count + 1}`;
+    }
+
+    const newExpense = new Expense(expData);
     const savedExpense = await newExpense.save();
 
     // Increase Supplier OD when bill is added
@@ -25,7 +32,7 @@ router.post('/', async (req, res) => {
 
     res.status(201).json(savedExpense);
   } catch (err) {
-    res.status(500).json({ message: 'Failed to create expense' });
+    res.status(500).json({ message: 'Failed to create expense', error: err.message || err.toString() });
   }
 });
 
