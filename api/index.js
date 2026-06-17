@@ -11,23 +11,26 @@ app.use(cors());
 app.use(express.json());
 
 // Database Connection Middleware for Serverless
+let isConnected = false;
 app.use(async (req, res, next) => {
   const MONGO_URI = process.env.MONGO_URI;
   if (!MONGO_URI) {
-    console.error("⚠️ MONGO_URI is missing!");
     return res.status(500).json({ message: "Server misconfiguration" });
   }
   
-  if (mongoose.connection.readyState !== 1) { // 1 = connected
-    try {
-      await mongoose.connect(MONGO_URI);
-      console.log('✅ MongoDB Connected inside middleware!');
-    } catch (err) {
-      console.error('❌ MongoDB Connection Error:', err);
-      return res.status(500).json({ message: "Database connection failed" });
-    }
+  if (isConnected) {
+    return next();
   }
-  next();
+  
+  try {
+    const db = await mongoose.connect(MONGO_URI);
+    isConnected = db.connections[0].readyState === 1;
+    console.log('✅ MongoDB Connected inside middleware!');
+    next();
+  } catch (err) {
+    console.error('❌ MongoDB Connection Error:', err);
+    return res.status(500).json({ message: "Database connection failed" });
+  }
 });
 
 // Routes
@@ -41,6 +44,7 @@ const paymentRoutes = require('../backend/routes/paymentRoutes');
 const salaryRoutes = require('../backend/routes/salaryRoutes');
 const gatePassRoutes = require('../backend/routes/gatePassRoutes');
 const settingsRoutes = require('../backend/routes/settingsRoutes');
+const syncRoutes = require('../backend/routes/syncRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/customers', customerRoutes);
@@ -52,6 +56,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/salary', salaryRoutes);
 app.use('/api/gatepasses', gatePassRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/sync', syncRoutes);
 
 // Basic Route
 app.get('/api', (req, res) => {

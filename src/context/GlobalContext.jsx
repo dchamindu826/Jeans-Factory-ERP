@@ -41,32 +41,19 @@ export const GlobalProvider = ({ children }) => {
     if (!currentUser) return; // Only fetch if logged in
 
     try {
-      const [
-        custRes, suppRes, invRes, passRes, staffRes,
-        salRes, expRes, prodRes, payRes, settingsRes
-      ] = await Promise.all([
-        axios.get(`${API_URL}/customers`),
-        axios.get(`${API_URL}/suppliers`),
-        axios.get(`${API_URL}/invoices`),
-        axios.get(`${API_URL}/gatepasses`),
-        axios.get(`${API_URL}/auth/staff`),
-        axios.get(`${API_URL}/salary`),
-        axios.get(`${API_URL}/expenses`),
-        axios.get(`${API_URL}/production`),
-        axios.get(`${API_URL}/payments`),
-        axios.get(`${API_URL}/settings`)
-      ]);
-
-      setCustomers(custRes.data);
-      setSuppliers(suppRes.data);
-      setInvoices(invRes.data);
-      setGatePasses(passRes.data);
-      setStaff(staffRes.data);
-      setSavedSalaries(salRes.data);
-      setExpenses(expRes.data);
-      setProductionLogs(prodRes.data);
-      setPayments(payRes.data);
-      setSettings(settingsRes.data);
+      const res = await axios.get(`${API_URL}/sync`);
+      const data = res.data;
+      
+      setCustomers(data.customers || []);
+      setSuppliers(data.suppliers || []);
+      setInvoices(data.invoices || []);
+      setGatePasses(data.gatepasses || []);
+      setStaff(data.staff || []);
+      setSavedSalaries(data.salaries || []);
+      setExpenses(data.expenses || []);
+      setProductionLogs(data.productions || []);
+      setPayments(data.payments || []);
+      setSettings(data.settings || { expenseCategories: [], availableMonths: [] });
     } catch (err) {
       console.error("Error fetching data from backend", err);
     }
