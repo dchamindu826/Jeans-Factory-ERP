@@ -79,9 +79,28 @@ export default function Suppliers() {
     try {
       const payment = { supplierId: selectedSupplierId, amount: parseFloat(paymentAmount), date: paymentDate, reference: paymentRef, type: 'supplier_payment' };
       await axios.post(`${API_URL}/payments`, payment);
-      setIsPaymentOpen(false);
-      setPaymentAmount(''); setPaymentRef('');
+      // Let's manually add the payment to the local state since we don't have setPayments
+      // But we can just reload the page for now or wait for sync API
+      window.location.reload(); 
     } catch (err) { console.error(err); }
+  };
+
+  const handleAddInvoice = async (e) => {
+    e.preventDefault();
+    try {
+      const expense = {
+        date: invDate,
+        amount: parseFloat(invAmount),
+        reason: invRemark,
+        supplierId: selectedSupplierId,
+        category: 'Supplier Bill'
+      };
+      await axios.post(`${API_URL}/expenses`, expense);
+      window.location.reload(); // Refresh to pull updated data
+    } catch (err) { 
+      const errorMsg = err.response?.data?.error || err.response?.data?.message || err.message;
+      alert(`Failed to save bill. Error: ${errorMsg}`);
+    }
   };
 
   const supplierBills = expenses.filter(exp => exp.supplierId === selectedSupplierId && exp.date?.startsWith(selectedMonth));
@@ -179,18 +198,18 @@ export default function Suppliers() {
                   <FileText className="text-amber-400 w-5 h-5" /> Bills Received ({selectedMonth})
                 </h3>
                 <div className="space-y-3">
-                  {currentSuppInvoices.map(inv => (
-                    <div key={inv.id} className="bg-slate-800/40 p-4 rounded-xl border border-slate-700/50 flex justify-between items-center">
+                  {supplierBills.map(inv => (
+                    <div key={inv._id} className="bg-slate-800/40 p-4 rounded-xl border border-slate-700/50 flex justify-between items-center">
                       <div>
                         <div className="font-bold text-white">{inv.date}</div>
-                        <div className="text-xs text-slate-400">{inv.remark || 'No remark'}</div>
+                        <div className="text-xs text-slate-400">{inv.reason || 'No remark'}</div>
                       </div>
                       <div className="text-right">
                         <div className="font-bold text-red-400">+ Rs. {inv.amount.toLocaleString()}</div>
                       </div>
                     </div>
                   ))}
-                  {currentSuppInvoices.length === 0 && <p className="text-slate-500 text-sm text-center py-4">No bills recorded for this month.</p>}
+                  {supplierBills.length === 0 && <p className="text-slate-500 text-sm text-center py-4">No bills recorded for this month.</p>}
                 </div>
               </div>
 
@@ -200,8 +219,8 @@ export default function Suppliers() {
                   <Wallet className="text-emerald-400 w-5 h-5" /> Payment History (All Time)
                 </h3>
                 <div className="space-y-3">
-                  {currentSuppPayments.map(p => (
-                    <div key={p.id} className="bg-emerald-900/20 p-4 rounded-xl border border-emerald-500/20 flex justify-between items-center">
+                  {supplierPaymentHistory.map(p => (
+                    <div key={p._id} className="bg-emerald-900/20 p-4 rounded-xl border border-emerald-500/20 flex justify-between items-center">
                       <div>
                         <div className="font-bold text-white">{p.date}</div>
                         <div className="text-xs text-slate-400">Ref: {p.reference || 'N/A'}</div>
@@ -209,7 +228,7 @@ export default function Suppliers() {
                       <div className="font-bold text-emerald-400 text-lg">- Rs. {p.amount.toLocaleString()}</div>
                     </div>
                   ))}
-                  {currentSuppPayments.length === 0 && <p className="text-slate-500 text-sm text-center py-4">No payments recorded.</p>}
+                  {supplierPaymentHistory.length === 0 && <p className="text-slate-500 text-sm text-center py-4">No payments recorded.</p>}
                 </div>
               </div>
 
@@ -229,7 +248,7 @@ export default function Suppliers() {
             <button onClick={() => setIsAddSupplierOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
             <h2 className="text-2xl font-bold text-white mb-6">New Supplier</h2>
             
-            <form onSubmit={handleAddSupplier} className="space-y-4">
+            <form onSubmit={handleSave} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1.5">Supplier Name *</label>
                 <input type="text" required value={newSuppName} onChange={e => setNewSuppName(e.target.value)} className="glass-input" />

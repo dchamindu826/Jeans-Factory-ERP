@@ -21,6 +21,11 @@ router.post('/', async (req, res) => {
       const count = await Expense.countDocuments();
       expData.issueNo = `ISS-${2000 + count + 1}`;
     }
+    
+    // Safeguard empty strings from frontend
+    if (!expData.supplierId || expData.supplierId === '') {
+      expData.supplierId = null;
+    }
 
     const newExpense = new Expense(expData);
     const savedExpense = await newExpense.save();
