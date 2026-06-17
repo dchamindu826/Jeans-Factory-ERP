@@ -4,9 +4,9 @@ import axios from 'axios';
 import { Calendar, Save, Calculator, Clock } from 'lucide-react';
 
 export default function Salary() {
-  const { staff, API_URL, savedSalaries, fetchAllData } = useGlobalContext();
-  const [selectedMonth, setSelectedMonth] = useState('2026-06');
-  const months = ['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06'];
+  const { staff, API_URL, savedSalaries, fetchAllData, settings } = useGlobalContext();
+  const months = settings?.availableMonths || ['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06'];
+  const [selectedMonth, setSelectedMonth] = useState(months[months.length - 1] || '2026-06');
 
   // This will hold the working data for the table
   const [payrolls, setPayrolls] = useState([]);
@@ -278,38 +278,7 @@ export default function Salary() {
           </div>
         </div>
 
-        {/* Mock Attendance Section */}
-        <div className="glass-card flex flex-col overflow-hidden relative border-t-4 border-t-emerald-500 opacity-60 hover:opacity-100 transition-opacity">
-          <div className="p-5 border-b border-slate-700/50 bg-slate-800/40 shrink-0">
-            <h3 className="text-xl font-bold text-white flex items-center gap-3 tracking-tight">
-              <Clock className="text-emerald-400" /> Attendance Log <span className="text-xs bg-amber-500/20 text-amber-300 px-2 py-1 rounded uppercase tracking-widest">Mock Data</span>
-            </h3>
-          </div>
-          <div className="p-5 overflow-x-auto">
-            <table className="w-full text-left border-collapse text-sm">
-              <thead>
-                <tr className="text-slate-400 uppercase tracking-widest border-b border-slate-700/50">
-                  <th className="pb-3 px-2 font-bold">Employee</th>
-                  <th className="pb-3 px-2 font-bold text-center">Working Days</th>
-                  <th className="pb-3 px-2 font-bold text-center">Present</th>
-                  <th className="pb-3 px-2 font-bold text-center">Absent</th>
-                  <th className="pb-3 px-2 font-bold text-center">Total OT Hrs</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800">
-                {staff.map(emp => (
-                  <tr key={emp.id} className="text-slate-300">
-                    <td className="py-3 px-2 font-bold">{emp.name}</td>
-                    <td className="py-3 px-2 text-center">26</td>
-                    <td className="py-3 px-2 text-center text-emerald-400">24</td>
-                    <td className="py-3 px-2 text-center text-red-400">2</td>
-                    <td className="py-3 px-2 text-center text-blue-400 font-bold">12.5</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+
 
       </div>
     </div>

@@ -3,10 +3,8 @@ import { useGlobalContext } from '../context/GlobalContext';
 import axios from 'axios';
 import { Users, Plus, Trash2, Edit, X, ShieldAlert } from 'lucide-react';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-
 export default function StaffManagement() {
-  const { staff, setStaff } = useGlobalContext();
+  const { staff, setStaff, API_URL } = useGlobalContext();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -70,7 +68,8 @@ export default function StaffManagement() {
       setIsModalOpen(false);
     } catch (err) {
       console.error("Failed to save staff", err);
-      alert("Failed to save staff. Please check if the phone number is already registered.");
+      const errorMsg = err.response?.data?.error || err.response?.data?.message || err.message;
+      alert(`Failed to save staff. Error: ${errorMsg}`);
     }
   };
 

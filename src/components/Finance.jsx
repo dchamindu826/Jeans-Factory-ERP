@@ -17,14 +17,14 @@ import {
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
 
 export default function Finance() {
-  const { invoices, expenses, customers } = useGlobalContext();
-  const [selectedMonth, setSelectedMonth] = useState('June 2026');
-  const months = ['January 2026', 'February 2026', 'March 2026', 'April 2026', 'May 2026', 'June 2026'];
+  const { invoices, expenses, customers, settings } = useGlobalContext();
+  const months = settings?.availableMonths || ['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06'];
+  const [selectedMonth, setSelectedMonth] = useState(months[months.length - 1] || '2026-06');
   const reportRef = useRef(null);
 
   // Filter Data for Selected Month
-  const currentInvoices = invoices.filter(inv => new Date(inv.date).toLocaleString('default', { month: 'long', year: 'numeric' }) === selectedMonth);
-  const currentExpenses = expenses.filter(exp => new Date(exp.date).toLocaleString('default', { month: 'long', year: 'numeric' }) === selectedMonth);
+  const currentInvoices = invoices.filter(inv => inv.date?.startsWith(selectedMonth));
+  const currentExpenses = expenses.filter(exp => exp.date?.startsWith(selectedMonth));
 
   // Calculate Metrics
   const totalRevenue = currentInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0); // Ex. VAT

@@ -12,12 +12,12 @@ import {
 } from 'lucide-react';
 
 export default function Invoices() {
-  const { API_URL } = useGlobalContext();
+  const { API_URL, settings } = useGlobalContext();
   const [invoices, setInvoices] = useState([]);
   const [customers, setCustomers] = useState([]);
   
-  const [months] = useState(['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06']);
-  const [selectedMonth, setSelectedMonth] = useState('2026-06');
+  const months = settings?.availableMonths || ['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06'];
+  const [selectedMonth, setSelectedMonth] = useState(months[months.length - 1] || '2026-06');
   
   const [dateFilterStart, setDateFilterStart] = useState('');
   const [dateFilterEnd, setDateFilterEnd] = useState('');

@@ -1,45 +1,36 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import html2canvas from 'html2canvas';
+import axios from 'axios';
+import { useGlobalContext } from '../context/GlobalContext';
 import { 
   Plus, 
   Trash2, 
   Edit, 
-  Check, 
   X, 
   Copy, 
   Factory,
   Droplet,
-  Users,
   Settings,
   ChevronLeft
 } from 'lucide-react';
 
 export default function Production() {
+  const { customers, productionLogs, setProductionLogs, settings, updateSettings, API_URL, fetchAllData } = useGlobalContext();
+  
   // Toggle between Employee Data Entry & Management Dashboard
   const [viewMode, setViewMode] = useState('employee'); // 'employee' | 'manager'
 
-  // Mock Data
-  const customers = ['Brandix', 'Hirdaramani', 'MAS Holdings', 'Next', 'Zara'];
-  
-  // State for dynamic process types
-  const [dryProcessTypes, setDryProcessTypes] = useState(['Whiskers', 'Scraping', 'Grinding', 'Tacking', 'Destroying']);
-  const [washProcessTypes, setWashProcessTypes] = useState(['Enzyme Wash', 'Bleach Wash', 'Stone Wash', 'Acid Wash', 'Tinting']);
-  
-  // State for quick access style numbers
-  const [savedStyles, setSavedStyles] = useState(['STY-1001', 'STY-1002']);
-
-  // All production records
-  const [productions, setProductions] = useState([
-    { id: 1, date: new Date().toISOString().split('T')[0], category: 'dry', customer: 'Brandix', style: 'STY-1001', process: 'Whiskers', qty: 500 },
-    { id: 2, date: new Date().toISOString().split('T')[0], category: 'wash', customer: 'Next', style: 'STY-1002', process: 'Enzyme Wash', qty: 1200 }
-  ]);
+  // Settings for process types & styles
+  const dryProcessTypes = settings?.dryProcessTypes || ['Whiskers', 'Scraping', 'Grinding', 'Tacking', 'Destroying'];
+  const washProcessTypes = settings?.washProcessTypes || ['Enzyme Wash', 'Bleach Wash', 'Stone Wash', 'Acid Wash', 'Tinting'];
+  const savedStyles = settings?.savedStyles || ['STY-1001', 'STY-1002'];
 
   // Employee View State
   const [activeCategory, setActiveCategory] = useState(null); // 'dry' | 'wash'
   
   // Form State
   const [entryDate, setEntryDate] = useState(new Date().toISOString().split('T')[0]);
-  const [entryCustomer, setEntryCustomer] = useState(customers[0]);
+  const [entryCustomer, setEntryCustomer] = useState('');
   const [entryStyle, setEntryStyle] = useState('');
   const [entryProcess, setEntryProcess] = useState('');
   const [entryQty, setEntryQty] = useState('');
@@ -52,65 +43,78 @@ export default function Production() {
   const dryCardRef = useRef(null);
   const washCardRef = useRef(null);
 
-  // Handlers
-  const handleSaveProduction = (e) => {
-    e.preventDefault();
-    if (editingProdId) {
-      setProductions(productions.map(p => p.id === editingProdId ? {
-        ...p,
-        date: entryDate,
-        customer: entryCustomer,
-        style: entryStyle,
-        process: entryProcess,
-        qty: parseInt(entryQty, 10)
-      } : p));
-      setEditingProdId(null);
-    } else {
-      setProductions([{
-        id: Date.now(),
-        date: entryDate,
-        category: activeCategory,
-        customer: entryCustomer,
-        style: entryStyle,
-        process: entryProcess,
-        qty: parseInt(entryQty, 10)
-      }, ...productions]);
-      
-      // Save style for quick access if not exists
-      if (entryStyle && !savedStyles.includes(entryStyle)) {
-        setSavedStyles([...savedStyles, entryStyle]);
-      }
+  useEffect(() => {
+    if (customers.length > 0 && !entryCustomer) {
+      setEntryCustomer(customers[0]._id);
     }
+  }, [customers]);
+
+  // Handlers
+  const handleSaveProduction = async (e) => {
+    e.preventDefault();
     
-    // Reset fields except date and customer
-    setEntryStyle('');
-    setEntryQty('');
-    setEntryProcess('');
-    setActiveCategory(null); // Go back to main choice
+    const productionData = {
+      date: entryDate,
+      category: activeCategory,
+      customerId: entryCustomer,
+      style: entryStyle,
+      process: entryProcess,
+      qty: parseInt(entryQty, 10)
+    };
+
+    try {
+      if (editingProdId) {
+        await axios.put(`${API_URL}/production/${editingProdId}`, productionData);
+        setEditingProdId(null);
+      } else {
+        await axios.post(`${API_URL}/production`, productionData);
+        
+        // Save style for quick access if not exists
+        if (entryStyle && !savedStyles.includes(entryStyle)) {
+          updateSettings({ ...settings, savedStyles: [...savedStyles, entryStyle] });
+        }
+      }
+      
+      fetchAllData(); // Refresh logs
+
+      // Reset fields except date and customer
+      setEntryStyle('');
+      setEntryQty('');
+      setEntryProcess('');
+      setActiveCategory(null); // Go back to main choice
+    } catch (err) {
+      console.error("Failed to save production", err);
+      alert("Failed to save production log.");
+    }
   };
 
   const handleEditProd = (prod) => {
     setActiveCategory(prod.category);
-    setEditingProdId(prod.id);
+    setEditingProdId(prod._id);
     setEntryDate(prod.date);
-    setEntryCustomer(prod.customer);
+    setEntryCustomer(prod.customerId?._id || prod.customerId);
     setEntryStyle(prod.style);
     setEntryProcess(prod.process);
     setEntryQty(prod.qty.toString());
   };
 
-  const handleDeleteProd = (id) => {
+  const handleDeleteProd = async (id) => {
     if(window.confirm('Are you sure you want to delete this production entry?')) {
-      setProductions(productions.filter(p => p.id !== id));
+      try {
+        await axios.delete(`${API_URL}/production/${id}`);
+        fetchAllData();
+      } catch (err) {
+        console.error("Failed to delete production", err);
+      }
     }
   };
 
   const handleAddType = () => {
     if (newType.trim()) {
       if (activeCategory === 'dry' && !dryProcessTypes.includes(newType.trim())) {
-        setDryProcessTypes([...dryProcessTypes, newType.trim()]);
+        updateSettings({ ...settings, dryProcessTypes: [...dryProcessTypes, newType.trim()] });
       } else if (activeCategory === 'wash' && !washProcessTypes.includes(newType.trim())) {
-        setWashProcessTypes([...washProcessTypes, newType.trim()]);
+        updateSettings({ ...settings, washProcessTypes: [...washProcessTypes, newType.trim()] });
       }
       setNewType('');
     }
@@ -118,9 +122,9 @@ export default function Production() {
 
   const handleDeleteType = (type) => {
     if (activeCategory === 'dry') {
-      setDryProcessTypes(dryProcessTypes.filter(t => t !== type));
+      updateSettings({ ...settings, dryProcessTypes: dryProcessTypes.filter(t => t !== type) });
     } else {
-      setWashProcessTypes(washProcessTypes.filter(t => t !== type));
+      updateSettings({ ...settings, washProcessTypes: washProcessTypes.filter(t => t !== type) });
     }
   };
 
@@ -142,7 +146,7 @@ export default function Production() {
     }
   };
 
-  const todaysProductions = productions.filter(p => p.date === new Date().toISOString().split('T')[0]);
+  const todaysProductions = productionLogs.filter(p => p.date === new Date().toISOString().split('T')[0]);
   const dryTotal = todaysProductions.filter(p => p.category === 'dry').reduce((sum, p) => sum + p.qty, 0);
   const washTotal = todaysProductions.filter(p => p.category === 'wash').reduce((sum, p) => sum + p.qty, 0);
 
@@ -223,7 +227,8 @@ export default function Production() {
                     <div>
                       <label className="block text-sm font-medium text-slate-300 mb-1.5">Customer</label>
                       <select required value={entryCustomer} onChange={e => setEntryCustomer(e.target.value)} className="glass-input [&>option]:bg-slate-900">
-                        {customers.map(c => <option key={c} value={c}>{c}</option>)}
+                        {customers.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
+                        {customers.length === 0 && <option value="" disabled>No customers found</option>}
                       </select>
                     </div>
                   </div>
@@ -293,23 +298,25 @@ export default function Production() {
                 <div className="glass-card p-5 h-full flex flex-col">
                   <h3 className="text-lg font-bold text-white mb-4 border-b border-slate-700/50 pb-2">Today's Entries ({todaysProductions.length})</h3>
                   <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-1">
-                    {todaysProductions.map(p => (
-                      <div key={p.id} className="bg-slate-800/40 p-3 rounded-lg border border-slate-700/50 relative group">
+                    {todaysProductions.map(p => {
+                      const customerName = customers.find(c => c._id === (p.customerId?._id || p.customerId))?.name || 'Unknown';
+                      return (
+                      <div key={p._id} className="bg-slate-800/40 p-3 rounded-lg border border-slate-700/50 relative group">
                         <div className="flex justify-between items-start mb-1">
                           <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded ${p.category === 'dry' ? 'bg-brand-500/20 text-brand-400' : 'bg-blue-500/20 text-blue-400'}`}>
                             {p.category}
                           </span>
                           <span className="text-lg font-black text-white">{p.qty} <span className="text-xs text-slate-500 font-normal">pcs</span></span>
                         </div>
-                        <div className="text-sm font-bold text-slate-300">{p.customer} - {p.style}</div>
+                        <div className="text-sm font-bold text-slate-300">{customerName} - {p.style}</div>
                         <div className="text-xs text-slate-500">{p.process}</div>
                         
                         <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 p-1 rounded shadow-lg">
                           <button onClick={() => handleEditProd(p)} className="p-1 text-amber-400 hover:bg-amber-400/20 rounded"><Edit className="w-3 h-3" /></button>
-                          <button onClick={() => handleDeleteProd(p.id)} className="p-1 text-red-400 hover:bg-red-400/20 rounded"><Trash2 className="w-3 h-3" /></button>
+                          <button onClick={() => handleDeleteProd(p._id)} className="p-1 text-red-400 hover:bg-red-400/20 rounded"><Trash2 className="w-3 h-3" /></button>
                         </div>
                       </div>
-                    ))}
+                    )})}
                     {todaysProductions.length === 0 && (
                       <p className="text-slate-500 text-sm text-center py-8">No productions logged today yet.</p>
                     )}
@@ -360,16 +367,18 @@ export default function Production() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/50">
-                    {todaysProductions.filter(p => p.category === 'dry').map(p => (
-                      <tr key={p.id}>
+                    {todaysProductions.filter(p => p.category === 'dry').map(p => {
+                      const customerName = customers.find(c => c._id === (p.customerId?._id || p.customerId))?.name || 'Unknown';
+                      return (
+                      <tr key={p._id}>
                         <td className="py-3">
                           <p className="font-bold text-slate-200">{p.style}</p>
-                          <p className="text-xs text-slate-500">{p.customer}</p>
+                          <p className="text-xs text-slate-500">{customerName}</p>
                         </td>
                         <td className="py-3 text-sm text-slate-300">{p.process}</td>
                         <td className="py-3 font-bold text-right text-brand-300">{p.qty.toLocaleString()}</td>
                       </tr>
-                    ))}
+                    )})}
                     {dryTotal === 0 && <tr><td colSpan="3" className="py-6 text-center text-slate-500 text-sm">No dry process entries today.</td></tr>}
                   </tbody>
                 </table>
@@ -403,16 +412,18 @@ export default function Production() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/50">
-                    {todaysProductions.filter(p => p.category === 'wash').map(p => (
-                      <tr key={p.id}>
+                    {todaysProductions.filter(p => p.category === 'wash').map(p => {
+                      const customerName = customers.find(c => c._id === (p.customerId?._id || p.customerId))?.name || 'Unknown';
+                      return (
+                      <tr key={p._id}>
                         <td className="py-3">
                           <p className="font-bold text-slate-200">{p.style}</p>
-                          <p className="text-xs text-slate-500">{p.customer}</p>
+                          <p className="text-xs text-slate-500">{customerName}</p>
                         </td>
                         <td className="py-3 text-sm text-slate-300">{p.process}</td>
                         <td className="py-3 font-bold text-right text-blue-300">{p.qty.toLocaleString()}</td>
                       </tr>
-                    ))}
+                    )})}
                     {washTotal === 0 && <tr><td colSpan="3" className="py-6 text-center text-slate-500 text-sm">No wash entries today.</td></tr>}
                   </tbody>
                 </table>

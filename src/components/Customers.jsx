@@ -4,11 +4,11 @@ import axios from 'axios';
 import { Users, Plus, FileText, Wallet, X, Trash2, Edit } from 'lucide-react';
 
 export default function Customers() {
-  const { customers, setCustomers, invoices, gatePasses, payments, API_URL } = useGlobalContext();
+  const { customers, setCustomers, invoices, gatePasses, payments, API_URL, settings } = useGlobalContext();
   
   const [selectedCustomerId, setSelectedCustomerId] = useState(customers[0]?._id || null);
-  const [selectedMonth, setSelectedMonth] = useState('2026-06');
-  const months = ['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06'];
+  const months = settings?.availableMonths || ['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06'];
+  const [selectedMonth, setSelectedMonth] = useState(months[months.length - 1] || '2026-06');
 
   const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
   const [newCustName, setNewCustName] = useState('');

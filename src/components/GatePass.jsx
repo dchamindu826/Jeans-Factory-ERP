@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { 
   Calendar, 
   Users, 
@@ -10,18 +11,25 @@ import {
 import { useGlobalContext } from '../context/GlobalContext';
 
 export default function GatePass() {
-  const { gatePasses, setGatePasses, customers } = useGlobalContext();
-  const [months, setMonths] = useState(['January 2026', 'February 2026', 'March 2026', 'April 2026', 'May 2026', 'June 2026']);
-  const [selectedMonth, setSelectedMonth] = useState('June 2026');
+  const { gatePasses, customers, settings, API_URL, fetchAllData } = useGlobalContext();
+  
+  const months = settings?.availableMonths || ['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06'];
+  const [selectedMonth, setSelectedMonth] = useState(months[months.length - 1] || '2026-06');
   
   const [selectedCustomer, setSelectedCustomer] = useState('All Customers');
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [gpDate, setGpDate] = useState(new Date().toISOString().split('T')[0]);
-  const [gpCustomer, setGpCustomer] = useState(customers[0]?.id || '');
+  const [gpCustomer, setGpCustomer] = useState('');
   const [gpNo, setGpNo] = useState(`GP-${2000 + gatePasses.length + 1}`);
   
   const [gpItems, setGpItems] = useState([{ name: '', qty: '' }]);
+
+  useEffect(() => {
+    if (customers.length > 0 && !gpCustomer) {
+      setGpCustomer(customers[0]._id);
+    }
+  }, [customers]);
 
   const handleAddItemRow = () => {
     setGpItems([...gpItems, { name: '', qty: '' }]);
@@ -37,7 +45,7 @@ export default function GatePass() {
     setGpItems(newItems);
   };
 
-  const handleSaveGatePass = (e) => {
+  const handleSaveGatePass = async (e) => {
     e.preventDefault();
     const validItems = gpItems.filter(i => i.name.trim() && i.qty);
     if (validItems.length === 0) {
@@ -46,22 +54,40 @@ export default function GatePass() {
     }
 
     const newGp = {
-      id: Date.now(),
       date: gpDate,
       passNo: gpNo,
-      customerId: parseInt(gpCustomer, 10),
+      customerId: gpCustomer,
       items: validItems.map(i => ({ name: i.name, qty: parseInt(i.qty, 10) }))
     };
 
-    setGatePasses([newGp, ...gatePasses]);
-    setIsCreateOpen(false);
-    setGpItems([{ name: '', qty: '' }]);
-    setGpNo(`GP-${2000 + gatePasses.length + 2}`);
+    try {
+      await axios.post(`${API_URL}/gatepasses`, newGp);
+      setIsCreateOpen(false);
+      setGpItems([{ name: '', qty: '' }]);
+      setGpNo(`GP-${2000 + gatePasses.length + 2}`);
+      fetchAllData();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save gate pass.");
+    }
   };
 
-  const filteredGatePasses = gatePasses.filter(gp => 
-    (selectedCustomer === 'All Customers' || gp.customerId === parseInt(selectedCustomer, 10))
-  );
+  const handleDeleteGatePass = async (id) => {
+    if (window.confirm("Delete this gate pass?")) {
+      try {
+        await axios.delete(`${API_URL}/gatepasses/${id}`);
+        fetchAllData();
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  }
+
+  const filteredGatePasses = gatePasses.filter(gp => {
+    const monthMatch = gp.date && gp.date.startsWith(selectedMonth);
+    const customerMatch = selectedCustomer === 'All Customers' || gp.customerId === selectedCustomer || gp.customerId?._id === selectedCustomer;
+    return monthMatch && customerMatch;
+  });
 
   return (
     <div className="flex flex-col xl:flex-row h-full gap-6 animate-in fade-in duration-500 overflow-y-auto custom-scrollbar xl:overflow-hidden pb-8 xl:pb-0">
@@ -101,7 +127,7 @@ export default function GatePass() {
             className="glass-input w-full [&>option]:bg-slate-900"
           >
             <option value="All Customers">All Customers</option>
-            {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {customers.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
           </select>
         </div>
       </div>
@@ -121,17 +147,22 @@ export default function GatePass() {
         <div className="glass-card flex-1 flex flex-col overflow-hidden relative">
           <div className="flex-1 overflow-auto custom-scrollbar p-5 space-y-4">
             {filteredGatePasses.map(gp => {
-              const customer = customers.find(c => c.id === gp.customerId) || { name: 'Unknown' };
+              const customer = customers.find(c => c._id === (gp.customerId?._id || gp.customerId)) || { name: 'Unknown' };
               return (
-              <div key={gp.id} className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-5 hover:border-slate-600 transition-colors">
+              <div key={gp._id} className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-5 hover:border-slate-600 transition-colors group">
                 <div className="flex flex-wrap justify-between items-start gap-4 mb-4 border-b border-slate-700/50 pb-4">
                   <div>
                     <h3 className="text-xl font-bold text-white">{gp.passNo}</h3>
                     <p className="text-slate-400 text-sm mt-1">{gp.date}</p>
                   </div>
-                  <span className="px-3 py-1 bg-brand-500/20 text-brand-300 font-bold rounded-lg text-sm border border-brand-500/30">
-                    {customer.name}
-                  </span>
+                  <div className="flex items-center gap-4">
+                    <span className="px-3 py-1 bg-brand-500/20 text-brand-300 font-bold rounded-lg text-sm border border-brand-500/30">
+                      {customer.name}
+                    </span>
+                    <button onClick={() => handleDeleteGatePass(gp._id)} className="p-2 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white rounded-xl transition-colors opacity-0 group-hover:opacity-100">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
                 
                 <table className="w-full text-left">
@@ -157,7 +188,7 @@ export default function GatePass() {
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-800/50 mb-4">
                   <FileText className="w-8 h-8 text-slate-500" />
                 </div>
-                <p className="text-slate-400 text-lg font-medium">No gate passes found.</p>
+                <p className="text-slate-400 text-lg font-medium">No gate passes found for this period.</p>
               </div>
             )}
           </div>
@@ -190,7 +221,7 @@ export default function GatePass() {
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Customer</label>
                   <select required value={gpCustomer} onChange={e => setGpCustomer(e.target.value)} className="glass-input [&>option]:bg-slate-900">
                     <option value="" disabled>Select Customer</option>
-                    {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    {customers.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
                   </select>
                 </div>
               </div>

@@ -4,11 +4,11 @@ import { useGlobalContext } from '../context/GlobalContext';
 import axios from 'axios';
 
 export default function Suppliers() {
-  const { suppliers, setSuppliers, expenses, payments, API_URL } = useGlobalContext();
+  const { suppliers, setSuppliers, expenses, payments, API_URL, settings } = useGlobalContext();
   
   const [selectedSupplierId, setSelectedSupplierId] = useState(suppliers[0]?._id || null);
-  const [selectedMonth, setSelectedMonth] = useState('2026-06');
-  const months = ['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06'];
+  const months = settings?.availableMonths || ['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06'];
+  const [selectedMonth, setSelectedMonth] = useState(months[months.length - 1] || '2026-06');
 
   const [isAddSupplierOpen, setIsAddSupplierOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);

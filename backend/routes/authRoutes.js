@@ -48,7 +48,7 @@ router.post('/staff', async (req, res) => {
     const savedStaff = await newStaff.save();
     res.status(201).json(savedStaff);
   } catch (err) {
-    res.status(500).json({ message: 'Failed to create staff', error: err.message });
+    res.status(500).json({ message: 'Failed to create staff', error: err.message || err.toString() });
   }
 });
 
