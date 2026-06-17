@@ -213,14 +213,14 @@ export default function Finance() {
                 </h3>
                 
                 {/* Bar Chart */}
-                <div className="h-[200px] w-full mb-6">
+                <div className="h-[200px] w-full mb-6 min-h-0 min-w-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={financeOverview} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
                       <XAxis dataKey="name" stroke="#64748b" tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 'bold' }} axisLine={false} tickLine={false} />
                       <YAxis hide />
                       <Tooltip 
                         cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-                        formatter={(value) => `Rs. ${value.toLocaleString()}`}
+                        formatter={(value) => `Rs. ${(value || 0).toLocaleString()}`}
                         contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(52, 211, 153, 0.2)', borderRadius: '12px', color: '#fff', fontWeight: 'bold' }}
                       />
                       <Bar dataKey="amount" radius={[6, 6, 6, 6]} barSize={60}>
@@ -274,7 +274,7 @@ export default function Finance() {
                 </h3>
 
                 {/* Pie Chart */}
-                <div className="h-[200px] w-full mb-6 relative">
+                <div className="h-[200px] w-full mb-6 relative min-h-0 min-w-0">
                   {expenseBreakdown.length > 0 ? (
                     <>
                       <ResponsiveContainer width="100%" height="100%">
@@ -294,7 +294,7 @@ export default function Finance() {
                             ))}
                           </Pie>
                           <Tooltip 
-                            formatter={(value) => `Rs. ${value.toLocaleString()}`}
+                            formatter={(value) => `Rs. ${(value || 0).toLocaleString()}`}
                             contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '12px', color: '#fff', fontWeight: 'bold' }}
                           />
                           <Legend verticalAlign="middle" align="right" layout="vertical" iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 'bold', color: '#cbd5e1' }} />

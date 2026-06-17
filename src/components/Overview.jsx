@@ -111,7 +111,7 @@ export default function Overview() {
         {/* Main Chart Area */}
         <div className="lg:col-span-2 glass-card p-6 flex flex-col h-[450px]">
           <h3 className="text-xl font-bold text-white mb-6">Financial Overview (Income vs Expense)</h3>
-          <div className="flex-1 w-full h-full">
+          <div className="flex-1 w-full h-full min-h-0 min-w-0">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
@@ -156,7 +156,7 @@ export default function Overview() {
         {/* Secondary Chart */}
         <div className="lg:col-span-3 glass-card p-6 h-[400px] flex flex-col">
           <h3 className="text-xl font-bold text-white mb-6">Production Output Trends</h3>
-          <div className="flex-1 w-full h-full">
+          <div className="flex-1 w-full h-full min-h-0 min-w-0">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
