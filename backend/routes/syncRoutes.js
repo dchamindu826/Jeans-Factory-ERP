@@ -6,7 +6,7 @@ const Supplier = require('../models/Supplier');
 const Invoice = require('../models/Invoice');
 const GatePass = require('../models/GatePass');
 const User = require('../models/User');
-const Salary = require('../models/Salary');
+const Payroll = require('../models/Payroll');
 const Expense = require('../models/Expense');
 const Production = require('../models/Production');
 const Payment = require('../models/Payment');
@@ -20,7 +20,7 @@ router.get('/', async (req, res) => {
       Invoice.find().sort({ createdAt: -1 }),
       GatePass.find().sort({ createdAt: -1 }),
       User.find().sort({ createdAt: -1 }),
-      Salary.find().sort({ createdAt: -1 }),
+      Payroll.find().sort({ createdAt: -1 }),
       Expense.find().sort({ createdAt: -1 }),
       Production.find().sort({ createdAt: -1 }),
       Payment.find().sort({ createdAt: -1 }),
