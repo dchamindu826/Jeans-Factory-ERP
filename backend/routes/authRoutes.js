@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
+const bcrypt = require('bcryptjs');
 
 // Simple Login (No bcrypt for now to match current frontend behavior, will add bcrypt later if needed)
 router.post('/login', async (req, res) => {
@@ -10,7 +11,13 @@ router.post('/login', async (req, res) => {
     // Find user
     const user = await User.findOne({ phone });
     
-    if (!user || user.password !== password) {
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid phone number or password' });
+    }
+
+    // Check password: it can be either bcrypt hashed or plain text (for backward compatibility)
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch && user.password !== password) {
       return res.status(401).json({ message: 'Invalid phone number or password' });
     }
 
@@ -44,7 +51,9 @@ router.get('/staff', async (req, res) => {
 // Create new staff
 router.post('/staff', async (req, res) => {
   try {
-    const newStaff = new User(req.body);
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(req.body.password || '123', salt);
+    const newStaff = new User({ ...req.body, password: hashedPassword });
     const savedStaff = await newStaff.save();
     res.status(201).json(savedStaff);
   } catch (err) {
@@ -55,7 +64,12 @@ router.post('/staff', async (req, res) => {
 // Update staff
 router.put('/staff/:id', async (req, res) => {
   try {
-    const updatedStaff = await User.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    let updateData = { ...req.body };
+    if (updateData.password) {
+      const salt = await bcrypt.genSalt(10);
+      updateData.password = await bcrypt.hash(updateData.password, salt);
+    }
+    const updatedStaff = await User.findByIdAndUpdate(req.params.id, updateData, { new: true });
     res.status(200).json(updatedStaff);
   } catch (err) {
     res.status(500).json({ message: 'Failed to update staff' });
